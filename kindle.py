@@ -6,23 +6,24 @@ import json
 import os
 import re
 
-BOUNDARY = u"==========\r\n"
+BOUNDARY = u"=========="
 DATA_FILE = u"clips.json"
 OUTPUT_DIR = u"output"
 
 
 def get_sections(filename):
-    with open(filename, 'rb') as f:
-        content = f.read().decode('utf-8')
+    with open(filename, 'r', encoding="utf8") as f:
+        content = f.read()
     content = content.replace(u'\ufeff', u'')
-    return content.split(BOUNDARY)
+    return [el.strip() for el in content.split(BOUNDARY)]
 
 
 def get_clip(section):
     clip = {}
 
-    lines = [l for l in section.split(u'\r\n') if l]
+    lines = [l for l in section.split('\n') if l]
     if len(lines) != 3:
+        print("skipping empty item.")
         return
 
     clip['book'] = lines[0]
@@ -44,11 +45,12 @@ def export_txt(clips):
     for book in clips:
         lines = []
         for pos in sorted(clips[book]):
-            lines.append(clips[book][pos].encode('utf-8'))
+            lines.append(clips[book][pos])
 
+        book = book.replace(':', '-')
         filename = os.path.join(OUTPUT_DIR, u"%s.md" % book)
-        with open(filename, 'wb') as f:
-            f.write("\n\n---\n\n".join(lines))
+        with open(filename, 'w', encoding='utf8') as f:
+            f.write("\n\n".join(lines))
 
 
 def load_clips():
@@ -56,7 +58,7 @@ def load_clips():
     Load previous clips from DATA_FILE
     """
     try:
-        with open(DATA_FILE, 'rb') as f:
+        with open(DATA_FILE, 'r') as f:
             return json.load(f)
     except (IOError, ValueError):
         return {}
@@ -66,8 +68,8 @@ def save_clips(clips):
     """
     Save new clips to DATA_FILE
     """
-    with open(DATA_FILE, 'wb') as f:
-        json.dump(clips, f)
+    with open(DATA_FILE, 'w') as f:
+        json.dump(clips, f, indent=4)
 
 
 def main():
@@ -77,10 +79,11 @@ def main():
 
     # extract clips
     sections = get_sections(u'My Clippings.txt')
+    print(f"Processing {len(sections)} items.")
     for section in sections:
         clip = get_clip(section)
         if clip:
-            clips[clip['book']][str(clip['position'])] = clip['content']
+            clips[clip['book']][clip['position']] = clip['content']
 
     # remove key with empty value
     clips = {k: v for k, v in clips.items() if v}
